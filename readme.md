@@ -22,14 +22,14 @@ Run the program and log in with the selenium browser. It will use your session i
 
 ![Excel](./doc/spreadsheet.png)
 
-<!--
-
 ## Submission note
 
-Robby: 
-
-I was watching your show and when you talked about your spreadsheet I was disappointed, because I haven’t kept all my receipts so I don’t know what price I paid for my games. But then I realized steam saves all that data, including what are you got on sale. So I made a program that makes a spreadsheet from your Steam data
-
-I’m not advising anyone to run this because on principle you should give your Steam credentials to strange programs on the Internet, but I wanted to show off my work and maybe this can help some spreadsheet fans who can read the code and understand what it’s doing.
-
--->
+> Robby: 
+> 
+> When you talked about your spreadsheet I was disappointed, because I haven’t kept all my receipts so I don’t know what price I paid for my games. But then I realized Steam saves all that data, including what all you got on sale. So I made a program (called it's the program) that makes a Robby-style spreadsheet from your real Steam data.
+> 
+> I’m not advising anyone to run this because on principle you should give your Steam credentials to strange programs on the internet, but I wanted to show off my work and maybe this can help some spreadsheet fans who can read the code and understand what it’s doing.
+> 
+> Keep up the great work!
+> 
+> \- Gio
