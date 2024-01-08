@@ -50,7 +50,17 @@ def initBrowserAndCookies():
 
     browser.get(steam_history_url)
 
-    WebDriverWait(browser, timeout=math.inf).until(lambda browser: browser.current_url == steam_history_url)
+    if browser.current_url != steam_history_url:
+        print(f"Please log into Steam using the new firefox window.")
+        print(f"Note: Logging into Steam like this grants the program full access over your account and is a major security risk! Consult the readme file for details.")
+        print("If you get an 'infinte loop', delete the cookiestore.json file and try again.")
+
+        browser.delete_all_cookies()
+        # TODO: Detect this case and clear cookies
+
+        print("Waiting for login...")
+        WebDriverWait(browser, timeout=math.inf).until(lambda browser: browser.current_url == steam_history_url)
+
     print("Navigated to", steam_history_url)
 
     with FiledJson("cookiestore.json") as cookiestore:
@@ -118,7 +128,7 @@ def purchaseDetailsFromWizard(transaction_id, cookies, browser=None) -> typing.I
             browser.get(wizard_url)
         resp_trans = requests.get(wizard_url, cookies=cookies)
         resp_trans.raise_for_status()
-        soup_trans = bs4.BeautifulSoup(resp_trans.text)
+        soup_trans = bs4.BeautifulSoup(resp_trans.text, features="lxml")
 
         # purchase_date = soup_trans.find(class_='purchase_date').text
 
@@ -135,10 +145,15 @@ def purchaseDetailsFromWizard(transaction_id, cookies, browser=None) -> typing.I
 
             resp_product = requests.get(line_item_url, cookies=cookies)
             resp_product.raise_for_status()
-            soup_product = bs4.BeautifulSoup(resp_product.text)
+            soup_product = bs4.BeautifulSoup(resp_product.text, features="lxml")
 
             product_appids = [
                 urllib.parse.parse_qs(urllib.parse.urlparse(a['href']).query)['appid'][0]
+                for a in
+                soup_product.select("a[href*='/en/wizard/HelpWithGame/']")
+            ]
+            product_infotags = [
+                ','.join(btn.text for btn in a.findAll(class_="help_wizard_button_dark"))
                 for a in
                 soup_product.select("a[href*='/en/wizard/HelpWithGame/']")
             ]
@@ -151,6 +166,7 @@ def purchaseDetailsFromWizard(transaction_id, cookies, browser=None) -> typing.I
                 "purchase_date": soup_product.find(class_='purchase_date').text.replace('Purchased: ', ''),
                 "transaction_id": transaction_id,
                 "appids": ','.join(product_appids),
+                "infotags": ','.join(product_infotags),
                 "is_gift": is_gift
             }
             yield entry_row
@@ -171,6 +187,11 @@ def getPlaytime(appids, playtime_data):
 
 def writePurchaseXls(purchase_history, playtime_data):
     from openpyxl import Workbook
+
+    xls_filename = "purchases.xlsx"
+
+    print(f"Writing data to spreadsheet {xls_filename!r}")
+
     wb = Workbook()
 
     ws = wb.active
@@ -184,6 +205,7 @@ def writePurchaseXls(purchase_history, playtime_data):
         "Gift?",
         "App IDs",
         "Total Playtime (minutes)",
+        "Info tags",
         "Hours per Dollar"
     ))
 
@@ -196,41 +218,50 @@ def writePurchaseXls(purchase_history, playtime_data):
             row['is_gift'],  # E
             row['appids'],  # F
             getPlaytime(row['appids'], playtime_data),  # G
-            ""  # H
+            row['infotags'],  # H
+            ""  # I
         ))
     for cell in ws["B"]:
         cell.number_format = "$0.00"
-    for j, cell in enumerate(ws["H"]):
+    for j, cell in enumerate(ws["I"]):
         i = j + 1
         if i == 1:
             continue
-        ws[f"G{i}"] = f"=(F{i}/60)/B{i}"
+        ws[f"I{i}"] = f"=(G{i}/60)/B{i}"
 
     ws.column_dimensions['A'].width = 55
     ws.column_dimensions['C'].hidden = True
     ws.column_dimensions['D'].hidden = True
     ws.column_dimensions['F'].hidden = True
     ws.column_dimensions['G'].width = 22
-    ws.column_dimensions['H'].width = 18
+    ws.column_dimensions['I'].width = 18
 
-    ws["I1"] = "Overall hours per dollar"
-    ws["I2"] = "=(SUM(F:F)/60)/SUM(B:B)"
+    ws["J1"] = "Overall hours per dollar"
+    ws["J2"] = "=(SUM(G:G)/60)/SUM(B:B)"
 
     # Save the file
-    wb.save("purchases.xlsx")
+    try:
+        wb.save(xls_filename)
+    except PermissionError:
+        print(f"Couldn't save the output file {xls_filename!r}! This probably means you have it open in excel already. Excel is very protective of files it has open!")
+        raise
 
 
 if __name__ == "__main__":
     # Load cached purchase history if it exists.
     # Otherwise, scrape your transaction history.
+    purchase_history_path = 'purchase_history.json'
     try:
-        with open('purchase_history.json', 'r') as fp:
+        with open(purchase_history_path, 'r') as fp:
             purchase_history = json.load(fp)
+            print(f"Loaded saved purchase history from {purchase_history_path!r}")
+
     except Exception:
         purchase_history = getPurchaseHistory()
 
-    with open('purchase_history.json', 'w') as fp:
-        json.dump(purchase_history, fp, indent=2)
+        with open(purchase_history_path, 'w') as fp:
+            json.dump(purchase_history, fp, indent=2)
+            print(f"Saved scraped data to {purchase_history_path!r}")
 
     # Get the latest playtime infomation from the API.
     # If it fails the first time, try to refresh the API token using selenium.
@@ -241,6 +272,7 @@ if __name__ == "__main__":
 
         try:
             with FiledJson("cookiestore.json") as cookiestore:
+                print(f"Getting the latest playtime data from the Steam API")
                 endpoint_url = f"https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?access_token={cookiestore['access_token']}&steamid={cookiestore['req']['steamLoginSecure'].split('%7C')[0]}&format=json"
                 resp = requests.get(endpoint_url, cookies=cookiestore['req'])
                 resp.raise_for_status()
@@ -253,3 +285,5 @@ if __name__ == "__main__":
                 raise
 
     writePurchaseXls(purchase_history, playtime_data)
+
+    print("Done!")

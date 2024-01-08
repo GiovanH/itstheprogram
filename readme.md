@@ -15,3 +15,21 @@ You should only run this program if you're confident that it does not send your 
 Requires firefox. 
 
 Run the program and log in with the selenium browser. It will use your session information and scrape your purchase history, then create a spreadsheet.
+
+## Example
+
+![Console](./doc/console.png)
+
+![Excel](./doc/spreadsheet.png)
+
+<!--
+
+## Submission note
+
+Robby: 
+
+I was watching your show and when you talked about your spreadsheet I was disappointed, because I haven’t kept all my receipts so I don’t know what price I paid for my games. But then I realized steam saves all that data, including what are you got on sale. So I made a program that makes a spreadsheet from your Steam data
+
+I’m not advising anyone to run this because on principle you should give your Steam credentials to strange programs on the Internet, but I wanted to show off my work and maybe this can help some spreadsheet fans who can read the code and understand what it’s doing.
+
+-->
